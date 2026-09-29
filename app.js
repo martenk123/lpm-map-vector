@@ -3,9 +3,10 @@
  */
 
 const SVG_URL = "output/nl_pc4.svg";
+const CONTEXT_URL = "output/context.svg";
 const POSTER_TEMPLATE_URL = "poster-template.html";
 const GLS_FILL = "#00198C";
-/** Lichtere accent-outline op selectie. */
+/** Lichtere accent-outline op selectie. Ook de zeekleur in context.svg. */
 const GLS_STROKE = "#5B7CFF";
 const OUTLINE_STROKE = "#9aa3ad";
 /**
@@ -14,8 +15,8 @@ const OUTLINE_STROKE = "#9aa3ad";
  */
 const GLS_SEAL_WIDTH = "18";
 const GLS_ACCENT_WIDTH = "1.15";
-/** Bump when export SVG structure changes (e.g. labels) so cached set markup rebuilds. */
-const SVG_BUILD_VERSION = 15;
+/** Bump when export SVG structure changes (e.g. labels, context) so cached set markup rebuilds. */
+const SVG_BUILD_VERSION = 17;
 
 /** Real GLS zone CSVs under src/ (semicolon-separated). */
 const SRC_ZONE_FILES = [
@@ -467,27 +468,28 @@ function bboxIntersects(b, vb) {
   );
 }
 
-/** A1 print context: region fills the sheet as large as possible. */
-const A1_W_MM = 594;
-const A1_H_MM = 841;
-/** Usable map area on A1 (margins / poster chrome). */
-const A1_MAP_W_MM = A1_W_MM * 0.9;
-const A1_MAP_H_MM = A1_H_MM * 0.86;
-/** Target glyph height on paper (A1, region fills map area). Keep small vs polygons. */
-const A1_LABEL_TARGET_MM = 1.0;
+/** A0 print context: region fills the sheet as large as possible. */
+const SHEET_W_MM = 841;
+const SHEET_H_MM = 1189;
+/** Usable map area on A0 (margins / poster chrome). */
+const MAP_W_MM = SHEET_W_MM * 0.9;
+const MAP_H_MM = SHEET_H_MM * 0.86;
+/** Target glyph height on paper (A0, region fills map area). */
+const LABEL_TARGET_MM = 1.2;
+/** Four digits are about this many ems wide. */
+const LABEL_WIDTH_FACTOR = 2.2;
+/** Colored halo under white digits, for a future road layer. Off on the bare zone map. */
+const ENABLE_HALO = false;
 
 /**
  * One shared font-size for all labels in a set.
- * Assumes the set's bounding box is scaled to fill an A1 map area (contain).
+ * Assumes the set's bounding box is scaled to fill an A0 map area (contain).
  */
 function uniformLabelFontSize(pc4s) {
   const vb = boundsForPc4s(pc4s, 0.04);
   if (!vb) return 4;
-  const unitsPerMm = Math.max(vb.w / A1_MAP_W_MM, vb.h / A1_MAP_H_MM);
-  let fontSize = A1_LABEL_TARGET_MM * unitsPerMm;
-  const maxSize = Math.min(vb.w, vb.h) * 0.012;
-  const minSize = Math.min(vb.w, vb.h) * 0.0035;
-  return Math.min(maxSize, Math.max(minSize, fontSize));
+  const unitsPerMm = Math.max(vb.w / MAP_W_MM, vb.h / MAP_H_MM);
+  return LABEL_TARGET_MM * unitsPerMm;
 }
 
 /**
@@ -611,7 +613,7 @@ function polylabel(polygon, precision = 1) {
   const width = maxX - minX;
   const height = maxY - minY;
   const cellSize = Math.min(width, height);
-  if (!(cellSize > 0)) return { x: minX, y: minY, distance: 0 };
+  if (!(cellSize > 0)) return { x: minX, y: minY, distance: 0, radius: 0 };
 
   const h0 = cellSize / 2;
   /** @type {{ x: number, y: number, h: number, d: number, max: number }[]} */
@@ -655,7 +657,7 @@ function polylabel(polygon, precision = 1) {
     pushCell(makeCell(cell.x + h, cell.y + h, h));
   }
 
-  return { x: best.x, y: best.y, distance: best.d };
+  return { x: best.x, y: best.y, distance: best.d, radius: best.d };
 }
 
 /** Max gap (SVG units) between exteriors that still count as één stuk. */
@@ -820,9 +822,12 @@ function pathLabelPoints(d, bboxFallback) {
     const precision = Math.max(0.4, Math.min(2, span / 80));
     const poi = polylabel([best.exterior.ring, ...holeRings], precision);
     if (poi && poi.distance >= 0) {
-      points.push({ x: poi.x, y: poi.y });
-    } else {
-      points.push({ x: best.exterior.info.x, y: best.exterior.info.y });
+      points.push({
+        x: poi.x,
+        y: poi.y,
+        radius: poi.radius,
+        area: Math.abs(best.exterior.info.area),
+      });
     }
   }
 
@@ -854,12 +859,8 @@ function labelCenters(meta) {
   return [];
 }
 
-/** Measure how far the rendered glyph box drifts from the nominal (x,y) anchor. */
+/** Measure glyph drift and the rendered "0000" box in the same font as the labels. */
 function measureLabelGlyphNudge(fontSize, { exportMode = false } = {}) {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("width", "0");
-  svg.setAttribute("height", "0");
-  svg.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden";
   const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
   text.setAttribute("class", "pc4-label");
   text.setAttribute("x", "0");
@@ -867,49 +868,130 @@ function measureLabelGlyphNudge(fontSize, { exportMode = false } = {}) {
   text.setAttribute("text-anchor", "middle");
   text.setAttribute("dominant-baseline", "central");
   text.setAttribute("font-size", fontSize.toFixed(2));
-  if (exportMode) {
+  text.textContent = "0000";
+
+  let svg = null;
+  if (exportMode || !svgRoot) {
+    svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", "0");
+    svg.setAttribute("height", "0");
+    svg.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden";
     text.setAttribute("font-family", "Helvetica Neue, Helvetica, Arial, sans-serif");
     text.setAttribute("font-weight", "700");
+    svg.appendChild(text);
+    document.body.appendChild(svg);
+  } else {
+    svgRoot.appendChild(text);
   }
-  text.textContent = "0000";
-  svg.appendChild(text);
-  document.body.appendChild(svg);
+
   let dx = 0;
   let dy = 0;
+  let w = LABEL_WIDTH_FACTOR * fontSize;
+  let h = fontSize;
   try {
     const b = text.getBBox();
     dx = -(b.x + b.width / 2);
     dy = -(b.y + b.height / 2);
+    if (b.width > 0) w = b.width;
+    if (b.height > 0) h = b.height;
   } catch {
-    /* keep 0 */
+    /* keep nominal box */
   }
-  svg.remove();
-  return { dx, dy };
+  text.remove();
+  if (svg) svg.remove();
+  return { dx, dy, w, h };
 }
 
-function labelMarkupForPoint(code, c, fontSize, { fill = "#FFFFFF", exportMode = false, nudge = null } = {}) {
+function labelBBox(point, fontSize, nudge = null) {
+  const n = nudge || { dx: 0, dy: 0 };
+  const w = n.w > 0 ? n.w : LABEL_WIDTH_FACTOR * fontSize;
+  const h = n.h > 0 ? n.h : fontSize;
+  const cx = point.x + n.dx;
+  const cy = point.y + n.dy;
+  return { x: cx - w / 2, y: cy - h / 2, w, h };
+}
+
+function labelBoxesIntersect(a, b) {
+  return !(
+    a.x + a.w <= b.x ||
+    b.x + b.w <= a.x ||
+    a.y + a.h <= b.y ||
+    b.y + b.h <= a.y
+  );
+}
+
+/**
+ * Largest areas first. Drop a label when the inscribed circle is narrower
+ * than four digits, or when the glyph box hits a label already placed.
+ */
+function buildLabelPlacements(pc4s, fontSize, nudge = null) {
+  const candidates = [];
+  for (const code of pc4s) {
+    const meta = bboxCache.get(code);
+    if (!meta) continue;
+    for (const point of labelCenters(meta)) {
+      candidates.push({
+        code,
+        point,
+        area: Number.isFinite(point.area) ? point.area : 0,
+      });
+    }
+  }
+  candidates.sort((a, b) => b.area - a.area);
+
+  const placed = [];
+  const kept = [];
+  for (const item of candidates) {
+    const radius = item.point.radius;
+    if (!Number.isFinite(radius) || 2 * radius < LABEL_WIDTH_FACTOR * fontSize) continue;
+    const box = labelBBox(item.point, fontSize, nudge);
+    if (placed.some((p) => labelBoxesIntersect(box, p))) continue;
+    placed.push(box);
+    kept.push(item);
+  }
+  return kept;
+}
+
+function labelStrokeAttrs(fontSize, zoneFill) {
+  if (!ENABLE_HALO) {
+    return { stroke: "none", strokeWidth: "0", paintOrder: "" };
+  }
+  return {
+    stroke: zoneFill || GLS_FILL,
+    strokeWidth: (0.3 * fontSize).toFixed(2),
+    paintOrder: "stroke fill",
+  };
+}
+
+function applyLabelStroke(text, fontSize, zoneFill) {
+  const stroke = labelStrokeAttrs(fontSize, zoneFill);
+  text.setAttribute("stroke", stroke.stroke);
+  text.setAttribute("stroke-width", stroke.strokeWidth);
+  if (!stroke.paintOrder) return;
+  text.setAttribute("paint-order", stroke.paintOrder);
+  text.style.setProperty("stroke", stroke.stroke, "important");
+  text.style.setProperty("stroke-width", stroke.strokeWidth, "important");
+  text.style.setProperty("paint-order", stroke.paintOrder, "important");
+}
+
+function labelMarkupForPoint(code, c, fontSize, { fill = "#FFFFFF", zoneFill = GLS_FILL, exportMode = false, nudge = null } = {}) {
   if (!c || !fontSize) return "";
   const n = nudge || { dx: 0, dy: 0 };
   const x = c.x + n.dx;
   const y = c.y + n.dy;
+  const stroke = labelStrokeAttrs(fontSize, zoneFill);
   return (
     `<text class="pc4-label" data-pc4-label="${code}" ` +
     `x="${x.toFixed(2)}" y="${y.toFixed(2)}" ` +
     `text-anchor="middle" dominant-baseline="central" ` +
     `font-size="${fontSize.toFixed(2)}" ` +
-    `fill="${fill}" stroke="none" stroke-width="0"` +
+    `fill="${fill}" stroke="${stroke.stroke}" stroke-width="${stroke.strokeWidth}"` +
+    (stroke.paintOrder ? ` paint-order="${stroke.paintOrder}"` : "") +
     (exportMode
       ? ` font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700"`
       : "") +
     `>${code}</text>`
   );
-}
-
-function labelMarkup(code, meta, fontSize, opts = {}) {
-  return labelCenters(meta)
-    .map((c) => labelMarkupForPoint(code, c, fontSize, opts))
-    .filter(Boolean)
-    .join("");
 }
 
 function ensureLabelLayer() {
@@ -936,22 +1018,18 @@ function renderMapLabels(pc4s) {
   const fontSize = uniformLabelFontSize(pc4s);
   const nudge = measureLabelGlyphNudge(fontSize, { exportMode: false });
   const frag = document.createDocumentFragment();
-  for (const code of pc4s) {
-    const meta = bboxCache.get(code);
-    for (const c of labelCenters(meta)) {
-      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      text.setAttribute("class", "pc4-label");
-      text.setAttribute("data-pc4-label", code);
-      text.setAttribute("x", (c.x + nudge.dx).toFixed(2));
-      text.setAttribute("y", (c.y + nudge.dy).toFixed(2));
-      text.setAttribute("text-anchor", "middle");
-      text.setAttribute("dominant-baseline", "central");
-      text.setAttribute("font-size", fontSize.toFixed(2));
-      text.setAttribute("stroke", "none");
-      text.setAttribute("stroke-width", "0");
-      text.textContent = code;
-      frag.appendChild(text);
-    }
+  for (const { code, point } of buildLabelPlacements(pc4s, fontSize, nudge)) {
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("class", "pc4-label");
+    text.setAttribute("data-pc4-label", code);
+    text.setAttribute("x", (point.x + nudge.dx).toFixed(2));
+    text.setAttribute("y", (point.y + nudge.dy).toFixed(2));
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("dominant-baseline", "central");
+    text.setAttribute("font-size", fontSize.toFixed(2));
+    applyLabelStroke(text, fontSize, GLS_FILL);
+    text.textContent = code;
+    frag.appendChild(text);
   }
   layer.appendChild(frag);
 }
@@ -960,18 +1038,33 @@ function renderMapLabels(pc4s) {
  * Lightweight SVG builder — no cloneNode of the 4MB national map.
  * Uses precomputed bbox + path `d` cache; only writes paths in view.
  */
-function buildBatchSvgMarkup(selectedPc4s, { fill = GLS_FILL } = {}) {
+function contextExportMarkup() {
+  const host = svgRoot?.querySelector("#context-layer");
+  if (!host) return "";
+  const clone = host.cloneNode(true);
+  clone.removeAttribute("style");
+  return new XMLSerializer().serializeToString(clone);
+}
+
+function buildBatchSvgMarkup(selectedPc4s, { fill = GLS_FILL, showContext = false } = {}) {
   if (!selectedPc4s.length || !bboxCache.size) return null;
   const vb = boundsForPc4s(selectedPc4s, 0.04);
   if (!vb) return null;
   const selectedSet = new Set(selectedPc4s);
   const fontSize = uniformLabelFontSize(selectedPc4s);
   const labelNudge = measureLabelGlyphNudge(fontSize, { exportMode: true });
+  const labels = buildLabelPlacements(selectedPc4s, fontSize, labelNudge).map(({ code, point }) =>
+    labelMarkupForPoint(code, point, fontSize, {
+      fill: "#FFFFFF",
+      zoneFill: fill,
+      exportMode: true,
+      nudge: labelNudge,
+    }),
+  );
 
   const outlines = [];
   const selectedSeal = [];
   const selectedAccent = [];
-  const labels = [];
 
   for (const [code, meta] of bboxCache) {
     if (!bboxIntersects(meta, vb) && !selectedSet.has(code)) continue;
@@ -985,12 +1078,6 @@ function buildBatchSvgMarkup(selectedPc4s, { fill = GLS_FILL } = {}) {
       selectedAccent.push(
         `<path data-pc4="${code}" data-accent="true" fill="none" stroke="${GLS_STROKE}" stroke-width="${GLS_ACCENT_WIDTH}" stroke-linejoin="round" vector-effect="non-scaling-stroke" d="${meta.d}"/>`,
       );
-      const lbl = labelMarkup(code, meta, fontSize, {
-        fill: "#FFFFFF",
-        exportMode: true,
-        nudge: labelNudge,
-      });
-      if (lbl) labels.push(lbl);
     } else {
       outlines.push(
         `<path data-pc4="${code}" data-selected="false" fill="none" stroke="${OUTLINE_STROKE}" stroke-width="0.45" vector-effect="non-scaling-stroke" d="${meta.d}"/>`,
@@ -1003,7 +1090,12 @@ function buildBatchSvgMarkup(selectedPc4s, { fill = GLS_FILL } = {}) {
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" ` +
     `width="100%" height="100%" preserveAspectRatio="xMidYMid meet" ` +
     `data-export="batch-zones" data-crs="EPSG:28992" data-label-font="${fontSize.toFixed(2)}">` +
-    `<style><![CDATA[#pc4-labels text{stroke:none!important;stroke-width:0!important;paint-order:fill}]]></style>` +
+    `<style><![CDATA[${
+      ENABLE_HALO
+        ? "#pc4-labels text{paint-order:stroke fill}"
+        : "#pc4-labels text{stroke:none!important;stroke-width:0!important;paint-order:fill}"
+    }]]></style>` +
+    (showContext ? contextExportMarkup() : "") +
     `<g id="pc4-neighbors">${outlines.join("")}</g>` +
     `<g id="pc4-selected-seal">${selectedSeal.join("")}</g>` +
     `<g id="pc4-selected-accent" pointer-events="none">${selectedAccent.join("")}</g>` +
@@ -1159,7 +1251,7 @@ async function ensureSetSvg(set) {
   set.status = "building";
   renderBatchCards();
   await yieldToMain();
-  const markup = buildBatchSvgMarkup(set.selectedPc4s);
+  const markup = buildBatchSvgMarkup(set.selectedPc4s, { showContext: !!set.showContext });
   await yieldToMain();
   revokeSetUrls(set);
   set.svgMarkup = markup;
@@ -1196,6 +1288,7 @@ function createSetFromCsv(fileName, text) {
     svgMarkup: null,
     svgUrl: null,
     status: "pending",
+    showContext: false,
   };
 }
 
@@ -1244,6 +1337,7 @@ function clearAllSets() {
   );
   setText(els.mapTitle, "Nederland PC4");
   setText(els.hoverInfo, "Kies een set om te previewen.");
+  applyContextVisibility();
   updatePosterPreview();
 }
 
@@ -1327,6 +1421,7 @@ function paintSetOnMap(set) {
   }
   accentLayer?.appendChild(accentFrag);
   renderMapLabels(paintedPc4s);
+  applyContextVisibility();
   fitToPc4s(set.selectedPc4s);
 }
 
@@ -1438,6 +1533,10 @@ function renderBatchCards() {
           <strong>${escapeHtml(s.baseName)}</strong>
           <span class="batch-card__status">${escapeHtml(statusLabel)}</span>
           <span class="lpm-muted">${escapeHtml(s.fileName)}</span>
+          <label class="lpm-choice batch-card__context">
+            <input type="checkbox" data-action="context" ${s.showContext ? "checked" : ""}>
+            <span>Context tonen</span>
+          </label>
           <div class="batch-card__actions">
             <button type="button" class="lpm-btn lpm-btn--brand" data-action="preview">Preview</button>
             <button type="button" class="lpm-btn lpm-btn--outline" data-action="download">SVG</button>
@@ -1581,6 +1680,40 @@ function extractPosterContainer(html) {
   return el ? el.outerHTML : "";
 }
 
+function applyContextVisibility() {
+  const host = svgRoot?.querySelector("#context-layer");
+  if (!host) return;
+  const set = getActiveSet();
+  const show = set ? !!set.showContext : true;
+  host.style.display = show ? "" : "none";
+}
+
+async function mountContextLayer() {
+  if (!svgRoot || svgRoot.querySelector("#context-layer")) return;
+  let text = "";
+  try {
+    const res = await fetch(CONTEXT_URL);
+    if (!res.ok) return;
+    text = await res.text();
+  } catch {
+    return;
+  }
+  const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+  const host = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  host.setAttribute("id", "context-layer");
+  host.setAttribute("pointer-events", "none");
+  for (const id of ["sea", "abroad", "nl-land"]) {
+    const src = doc.querySelector(`#${id}`);
+    if (!src) continue;
+    host.appendChild(document.importNode(src, true));
+  }
+  if (!host.childElementCount) return;
+  const pc4 = svgRoot.querySelector("#pc4-layer");
+  if (pc4) svgRoot.insertBefore(host, pc4);
+  else svgRoot.insertBefore(host, svgRoot.firstChild);
+  applyContextVisibility();
+}
+
 /* ================================================================== map load / events */
 async function loadSvg() {
   setBadge(els.badgeMap, "Kaart laden…", "quiet");
@@ -1649,8 +1782,10 @@ async function loadSvg() {
 
   setBatchProgress(false);
   setBadge(els.badgeMap, `${pathByPc4.size} PC4-gebieden`, "success");
+  await mountContextLayer();
   refreshAllUi();
   if (activeSetId) activateSet(activeSetId);
+  else applyContextVisibility();
 }
 
 function flushWheelZoom() {
@@ -1934,8 +2069,26 @@ els.btnExportAll?.addEventListener("click", async () => {
   setText(els.hoverInfo, `${files.length} SVG’s als zip gedownload.`);
 });
 
+els.batchSetList?.addEventListener("change", (ev) => {
+  const input = ev.target.closest("[data-action='context']");
+  if (!input) return;
+  const card = input.closest("[data-set-id]");
+  const set = card && getSet(card.dataset.setId);
+  if (!set) return;
+  set.showContext = input.checked;
+  set.svgMarkup = null;
+  set.svgBuildVersion = null;
+  if (activeSetId === set.id) {
+    applyContextVisibility();
+    ensureSetSvg(set).then(() => {
+      if (activeSetId === set.id) updatePosterPreview();
+    });
+  }
+});
+
 els.batchSetList?.addEventListener("click", async (ev) => {
   if (batchBusy) return;
+  if (ev.target.closest(".batch-card__context")) return;
   const btn = ev.target.closest("[data-action]");
   const card = ev.target.closest("[data-set-id]");
   if (!card) return;

@@ -448,6 +448,20 @@
   font-size: var(--lpm-text-label);
 }
 
+.batch-card__context {
+  margin-top: var(--lpm-space-2);
+  padding: 8px 4px;
+}
+
+.batch-card__context span {
+  font-size: var(--lpm-text-label);
+}
+
+.pc4-map-wrap #context-layer,
+.pc4-map-wrap #context-layer * {
+  pointer-events: none;
+}
+
 .batch-card__actions {
   display: flex;
   flex-wrap: wrap;

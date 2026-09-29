@@ -5,6 +5,8 @@ venv/
 .env
 output/*
 !output/nl_pc4.svg
+!output/context.svg
+cache/
 *.geojson
 .DS_Store
 la-plume-ai-toolkit.zip

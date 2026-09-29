@@ -249,6 +249,225 @@ def log_union_hole_stats(label: str, features: list[tuple[str, BaseGeometry]]) -
     )
 
 
+def polygon_parts(geom: BaseGeometry | None) -> list[Polygon]:
+    """Exterior parts only. Holes stay inside their polygon."""
+    if geom is None or geom.is_empty:
+        return []
+    if isinstance(geom, Polygon):
+        return [] if geom.is_empty else [geom]
+    if isinstance(geom, MultiPolygon):
+        return [g for g in geom.geoms if isinstance(g, Polygon) and not g.is_empty]
+    if geom.geom_type == "GeometryCollection":
+        parts: list[Polygon] = []
+        for child in geom.geoms:
+            parts.extend(polygon_parts(child))
+        return parts
+    return []
+
+
+def is_sliver(part: Polygon, min_width: float = 15) -> bool:
+    """True when the part is thinner than min_width everywhere (RD metres)."""
+    if min_width <= 0 or part.is_empty:
+        return False
+    try:
+        return part.buffer(-min_width / 2).is_empty
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def is_speck(part: Polygon, min_area: float = 10_000) -> bool:
+    """True when the part is smaller than min_area (m²)."""
+    if min_area <= 0 or part.is_empty:
+        return False
+    return part.area < min_area
+
+
+def log_part_size_stats(features: list[tuple[str, BaseGeometry]]) -> None:
+    """
+    Probe polygon parts after simplify, before absorption.
+
+    Fixed probes (not the CLI thresholds): area < 10_000 m², and
+    buffer(-7.5 m) empty — that width is the default --min-width of 15 m.
+    """
+    rows: list[tuple[float, str]] = []
+    thin = 0
+    for code, geom in features:
+        for part in polygon_parts(geom):
+            area = float(part.area)
+            rows.append((area, code))
+            try:
+                if part.buffer(-7.5).is_empty:
+                    thin += 1
+            except Exception:  # noqa: BLE001
+                thin += 1
+    small = sum(1 for area, _ in rows if area < 10_000)
+    log.info(
+        "Part probe: %d polygon(s) with area < 10000 m²; "
+        "%d polygon(s) with buffer(-7.5 m) empty (of %d parts)",
+        small,
+        thin,
+        len(rows),
+    )
+    smallest = sorted(rows, key=lambda row: row[0])[:30]
+    log.info("Smallest 30 part areas (m²):")
+    for area, code in smallest:
+        log.info("  PC4 %s  %.1f", code, area)
+
+
+class AbsorbStats:
+    """Counts for one absorption pass, split by artefact kind."""
+
+    def __init__(self) -> None:
+        self.absorbed_slivers = 0
+        self.absorbed_specks = 0
+        self.removed_specks = 0
+        self.kept_slivers = 0
+        self.kept_to_preserve_code = 0
+
+    def log(self) -> None:
+        log.info(
+            "Sliver absorption: absorbed %d sliver(s), %d speck(s); "
+            "removed %d floating speck(s); kept %d sliver(s) without a neighbour; "
+            "kept %d part(s) so a PC4 code would not disappear",
+            self.absorbed_slivers,
+            self.absorbed_specks,
+            self.removed_specks,
+            self.kept_slivers,
+            self.kept_to_preserve_code,
+        )
+
+
+def _shared_border_rank(part: Polygon, other: Polygon) -> float:
+    """User ranking: length of part ∩ buffer(other, 1 m). 0 = no neighbour."""
+    try:
+        shared = part.intersection(other.buffer(1))
+    except Exception:  # noqa: BLE001
+        return 0.0
+    if shared.is_empty:
+        return 0.0
+    return float(shared.length)
+
+
+def absorb_slivers(
+    features: list[tuple[str, BaseGeometry]],
+    *,
+    min_width: float,
+    min_area: float,
+) -> tuple[list[tuple[str, BaseGeometry]], AbsorbStats]:
+    """
+    Move thin or tiny parts onto the neighbour with the longest shared border.
+
+    A speck with no neighbour is dropped. A sliver with no neighbour stays.
+    A PC4 code is never removed, even when its only part is an artefact.
+    """
+    stats = AbsorbStats()
+    if min_width <= 0 and min_area <= 0:
+        return features, stats
+
+    from shapely import STRtree, make_valid
+
+    indexed: list[dict[str, Any]] = []
+    for code, geom in features:
+        for part in polygon_parts(geom):
+            kind = ""
+            if min_width > 0 and is_sliver(part, min_width):
+                kind = "sliver"
+            elif min_area > 0 and is_speck(part, min_area):
+                kind = "speck"
+            indexed.append({"code": code, "poly": part, "kind": kind, "action": "keep", "dst": ""})
+
+    if not indexed:
+        return features, stats
+
+    tree = STRtree([item["poly"] for item in indexed])
+    left = {}
+    for item in indexed:
+        left[item["code"]] = left.get(item["code"], 0) + 1
+
+    for i, item in enumerate(indexed):
+        if not item["kind"]:
+            continue
+        poly = item["poly"]
+        try:
+            hits = tree.query(poly.buffer(1))
+        except Exception:  # noqa: BLE001
+            hits = []
+        best_code = ""
+        best_len = 0.0
+        touches_own = False
+        for raw in hits:
+            j = int(raw)
+            if j == i:
+                continue
+            other = indexed[j]
+            rank = _shared_border_rank(poly, other["poly"])
+            if rank <= 0:
+                continue
+            if other["code"] == item["code"]:
+                touches_own = True
+                continue
+            if rank > best_len:
+                best_len = rank
+                best_code = other["code"]
+
+        if best_code:
+            if left[item["code"]] <= 1:
+                stats.kept_to_preserve_code += 1
+                continue
+            item["action"] = "absorb"
+            item["dst"] = best_code
+            left[item["code"]] -= 1
+            if item["kind"] == "sliver":
+                stats.absorbed_slivers += 1
+            else:
+                stats.absorbed_specks += 1
+            continue
+
+        if item["kind"] == "speck" and not touches_own:
+            if left[item["code"]] <= 1:
+                stats.kept_to_preserve_code += 1
+                continue
+            item["action"] = "remove"
+            left[item["code"]] -= 1
+            stats.removed_specks += 1
+            continue
+
+        if item["kind"] == "sliver":
+            stats.kept_slivers += 1
+
+    buckets: dict[str, list[Polygon]] = {}
+    for item in indexed:
+        if item["action"] == "remove":
+            continue
+        dest = item["dst"] if item["action"] == "absorb" else item["code"]
+        buckets.setdefault(dest, []).append(item["poly"])
+
+    original = {code: geom for code, geom in features}
+    out: list[tuple[str, BaseGeometry]] = []
+    for code, _geom in features:
+        polys = buckets.get(code) or []
+        if not polys:
+            out.append((code, original[code]))
+            continue
+        merged: BaseGeometry = unary_union(polys) if len(polys) > 1 else polys[0]
+        try:
+            merged = make_valid(merged)
+        except Exception:  # noqa: BLE001
+            pass
+        cleaned = clean_for_svg(merged, simplify_m=0.0)
+        out.append((code, cleaned if cleaned is not None else original[code]))
+
+    before = {code for code, _ in features}
+    after = {code for code, _ in out}
+    if before != after:
+        log.error(
+            "PC4 code set changed during absorption (lost %s, gained %s)",
+            sorted(before - after),
+            sorted(after - before),
+        )
+    return out, stats
+
+
 def naive_simplify_features(
     features: list[tuple[str, BaseGeometry]],
     *,
@@ -447,6 +666,36 @@ def geom_to_path_d(
     return "".join(chunks)
 
 
+def compute_svg_frame(
+    features: list[tuple[str, BaseGeometry]],
+    *,
+    padding_m: float,
+    scale: float,
+) -> dict[str, float]:
+    """RD frame shared by nl_pc4.svg and context.svg. viewBox is 0 0 width height."""
+    bounds = [float("inf"), float("inf"), float("-inf"), float("-inf")]
+    for _, geom in features:
+        update_bounds(bounds, geom)
+    data_min_x, data_min_y, data_max_x, data_max_y = bounds
+    min_x = data_min_x - padding_m
+    min_y = data_min_y - padding_m
+    max_x = data_max_x + padding_m
+    max_y = data_max_y + padding_m
+    return {
+        "min_x": min_x,
+        "min_y": min_y,
+        "max_x": max_x,
+        "max_y": max_y,
+        "scale": scale,
+        "width": (max_x - min_x) * scale,
+        "height": (max_y - min_y) * scale,
+        "data_min_x": data_min_x,
+        "data_min_y": data_min_y,
+        "data_max_x": data_max_x,
+        "data_max_y": data_max_y,
+    }
+
+
 def write_svg(
     features: list[tuple[str, BaseGeometry]],
     out_path: Path,
@@ -464,19 +713,11 @@ def write_svg(
     if not features:
         raise ValueError("No features to render")
 
-    # Absolute RD bounds
-    bounds = [float("inf"), float("inf"), float("-inf"), float("-inf")]
-    for _, geom in features:
-        update_bounds(bounds, geom)
-
-    min_x, min_y, max_x, max_y = bounds
-    min_x -= padding_m
-    min_y -= padding_m
-    max_x += padding_m
-    max_y += padding_m
-
-    width = (max_x - min_x) * scale
-    height = (max_y - min_y) * scale
+    frame = compute_svg_frame(features, padding_m=padding_m, scale=scale)
+    min_x = frame["min_x"]
+    max_y = frame["max_y"]
+    width = frame["width"]
+    height = frame["height"]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as fh:
@@ -614,6 +855,38 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="SVG units per RD metre (default: 0.1 → ~28k×33k viewBox for NL).",
     )
     p.add_argument(
+        "--min-width",
+        type=float,
+        default=15.0,
+        metavar="METRES",
+        help=(
+            "Absorb parts thinner than this (RD metres) into the neighbour with "
+            "the longest shared border. 0 disables. Default: 15. "
+            "Checked on the current topo output: every part with buffer(-7.5) empty "
+            "is also under 10000 m², so 15 m does not swallow a wide PC4."
+        ),
+    )
+    p.add_argument(
+        "--min-area",
+        type=float,
+        default=10_000.0,
+        metavar="M2",
+        help=(
+            "Absorb parts smaller than this (m²) into the neighbour with the "
+            "longest shared border. A speck with no neighbour is removed. "
+            "0 disables. Default: 10000."
+        ),
+    )
+    p.add_argument(
+        "--report",
+        action="store_true",
+        help=(
+            "After simplify, log union holes plus a part-size probe "
+            "(area < 10000 m², buffer(-7.5 m) empty, 30 smallest areas) "
+            "and the absorption counts per category."
+        ),
+    )
+    p.add_argument(
         "--timeout",
         type=float,
         default=DEFAULT_TIMEOUT,
@@ -683,6 +956,26 @@ def main(argv: list[str] | None = None) -> int:
         log.error("%s", exc)
         return 1
 
+    codes_before = {code for code, _ in features}
+    if args.report:
+        log_union_hole_stats("before absorption", features)
+        log_part_size_stats(features)
+    features, absorb_stats = absorb_slivers(
+        features,
+        min_width=args.min_width,
+        min_area=args.min_area,
+    )
+    codes_after = {code for code, _ in features}
+    if codes_before != codes_after:
+        log.error(
+            "PC4 count changed (%d → %d); absorption must not drop a code",
+            len(codes_before),
+            len(codes_after),
+        )
+        return 1
+    if args.report or args.min_width > 0 or args.min_area > 0:
+        absorb_stats.log()
+
     if args.geojson:
         write_geojson(features, args.geojson, year=args.year)
         log.info("Wrote GeoJSON → %s", args.geojson)
@@ -702,6 +995,20 @@ def main(argv: list[str] | None = None) -> int:
         size_mb,
         len(features),
     )
+
+    try:
+        from context_to_svg import write_context_svg
+
+        context_path = write_context_svg(
+            features,
+            padding_m=args.padding,
+            scale=args.scale,
+            out_path=args.out.parent / "context.svg",
+        )
+        log.info("Wrote context SVG → %s", context_path)
+    except Exception as exc:  # noqa: BLE001 — PC4 file is already written
+        log.error("Contextlaag mislukt: %s", exc)
+        return 1
     return 0
 
 
