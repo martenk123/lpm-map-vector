@@ -1,0 +1,11 @@
+Postcode,Woonplaats,Provincie,Bezorgzone,Basistarief,Status
+1011 AA,Amsterdam,Noord-Holland,Zone 1 (Centrum),2.95,Actief
+2011 RD,Haarlem,Noord-Holland,Zone 1 (Centrum),2.95,Actief
+3011 TA,Rotterdam,Zuid-Holland,Zone 2 (Stedelijk),3.50,Actief
+3511 CW,Utrecht,Utrecht,Zone 2 (Stedelijk),3.50,Actief
+5014 AA,Tilburg,Noord-Brabant,Zone 3 (Regionaal),4.50,Actief
+6811 AL,Arnhem,Gelderland,Zone 3 (Regionaal),4.50,Actief
+8011 AA,Zwolle,Overijssel,Zone 4 (Buitengebied),5.75,Actief
+9711 JZ,Groningen,Groningen,Zone 4 (Buitengebied),5.75,Actief
+8899 AA,Vlieland,Friesland,Zone 5 (Waddeneilanden),8.50,Inactief
+6211 AA,Maastricht,Limburg,Zone 6 (Zuid-grens),6.25,Actief

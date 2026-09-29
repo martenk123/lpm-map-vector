@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interne La Plume Media-tool: PC4 batch-kaarten en GLS A0 zoneposters.">
+  <meta name="toolkit:scope" content="internal-ai-tooling">
+  <title>PostcodeVector — La Plume Media Internal Tools</title>
+  <link rel="stylesheet" href="toolkit/toolkit.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <main class="lpm-shell lpm-shell--wide lpm-stack">
+    <header class="lpm-lockup">
+      <img src="toolkit/assets/logo.svg" alt="La Plume Media">
+      <span class="lpm-lockup__label">
+        <strong>INTERNAL TOOLS</strong>
+        <span>PostcodeVector · PC4 / A0 posters</span>
+      </span>
+    </header>
+
+    <section class="lpm-hero lpm-surface-grid pc4-hero">
+      <span class="lpm-scope-chip">ALLEEN INTERN · PDOK / CBS PC4</span>
+      <h1>Batch zones naar kaart en A0-poster.</h1>
+      <p>
+        Upload één of meerdere CSV’s, preview per set, exporteer SVG’s, en maak GLS-zoneposters op A0-drukformaat.
+      </p>
+    </section>
+
+    <div class="pc4-tabs" role="tablist" aria-label="Hoofdsecties">
+      <button type="button" class="pc4-tab is-active" role="tab" id="tab-btn-map" aria-controls="tab-map" aria-selected="true" data-tab="map">Kaart &amp; batch</button>
+      <button type="button" class="pc4-tab" role="tab" id="tab-btn-poster" aria-controls="tab-poster" aria-selected="false" data-tab="poster">Posters A0</button>
+    </div>
+
+    <!-- TAB: Kaart & batch -->
+    <div class="pc4-tabpanel" id="tab-map" role="tabpanel" aria-labelledby="tab-btn-map">
+      <div class="pc4-layout pc4-layout--batch">
+        <section class="lpm-panel pc4-controls" aria-labelledby="controls-title">
+          <span class="lpm-eyebrow">BATCH</span>
+          <h2 id="controls-title" class="lpm-section-title">CSV-sets</h2>
+
+          <div class="lpm-badges" id="status-badges" aria-live="polite">
+            <span class="lpm-badge lpm-badge--quiet" id="badge-map">Kaart laden…</span>
+            <span class="lpm-badge lpm-badge--quiet" id="badge-data">0 sets</span>
+          </div>
+
+          <div class="batch-progress" id="batch-progress" hidden>
+            <div class="batch-progress__label" id="batch-progress-label">Bezig…</div>
+            <div class="batch-progress__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="batch-progress-bar">
+              <div class="batch-progress__fill" id="batch-progress-fill"></div>
+            </div>
+            <div class="batch-progress__meta" id="batch-progress-meta">0 / 0</div>
+          </div>
+
+          <label class="lpm-field" for="csv-file">
+            Batch CSV-upload
+            <input class="lpm-input" id="csv-file" type="file" accept=".csv,text/csv" multiple aria-describedby="csv-help">
+          </label>
+          <p class="lpm-muted" id="csv-help">
+            Meerdere CSV’s tegelijk (<code>,</code> of <code>;</code>). Verwacht o.a. kolommen
+            <code>Postcode</code>, optioneel <code>Zone_Depot</code> / <code>Plaats</code>. PC4 = eerste 4 cijfers.
+          </p>
+
+          <div class="lpm-actions">
+            <button type="button" class="lpm-btn lpm-btn--brand" id="btn-demo">Laad GLS zones (src)</button>
+            <button type="button" class="lpm-btn lpm-btn--outline" id="btn-clear" disabled>Wis alle sets</button>
+          </div>
+
+          <div class="lpm-actions">
+            <button type="button" class="lpm-btn lpm-btn--primary" id="btn-export-all" disabled>Download alle SVG’s (zip)</button>
+          </div>
+
+          <aside class="lpm-note">
+            <strong>Bron</strong>
+            <span>PDOK CBS postcode4 (EPSG:28992). CSV’s blijven lokaal in de browser.</span>
+          </aside>
+
+          <div class="batch-set-list" id="batch-set-list" aria-live="polite">
+            <p class="lpm-muted" id="batch-empty">Nog geen sets. Upload CSV’s of laad de GLS-zones uit <code>src/</code>.</p>
+          </div>
+        </section>
+
+        <section class="lpm-panel pc4-map-panel" aria-labelledby="map-title">
+          <div class="pc4-map-header">
+            <div>
+              <span class="lpm-eyebrow">PREVIEW SET</span>
+              <h2 id="map-title" class="lpm-section-title">Nederland PC4</h2>
+            </div>
+            <p class="lpm-muted" id="hover-info">Kies een set om te previewen. Scroll = zoomen · sleep = pannen.</p>
+          </div>
+          <div class="pc4-map-stage">
+            <div class="pc4-map-toolbar" role="toolbar" aria-label="Kaartnavigatie">
+              <button type="button" class="lpm-btn lpm-btn--outline pc4-zoom-btn" id="btn-zoom-in" title="Inzoomen" aria-label="Inzoomen">+</button>
+              <button type="button" class="lpm-btn lpm-btn--outline pc4-zoom-btn" id="btn-zoom-out" title="Uitzoomen" aria-label="Uitzoomen">−</button>
+              <button type="button" class="lpm-btn lpm-btn--outline" id="btn-zoom-reset" title="Hele Nederland">Heel NL</button>
+            </div>
+            <div class="pc4-map-wrap" id="map-wrap" role="application" aria-label="Interactieve PC4-kaart" tabindex="0">
+              <div class="pc4-map-empty" id="map-empty"><p>Kaart wordt geladen…</p></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="lpm-panel" aria-labelledby="table-title">
+        <span class="lpm-eyebrow">CONTROLE</span>
+        <h2 id="table-title" class="lpm-section-title">Rijen actieve set</h2>
+        <div class="pc4-table-wrap">
+          <table class="pc4-table" id="data-table">
+            <thead id="table-head"></thead>
+            <tbody id="table-body">
+              <tr><td class="lpm-muted">Nog geen set geselecteerd.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- TAB: Posters A0 -->
+    <div class="pc4-tabpanel" id="tab-poster" role="tabpanel" aria-labelledby="tab-btn-poster" hidden>
+      <div class="pc4-layout pc4-layout--poster">
+        <section class="lpm-panel pc4-controls" aria-labelledby="poster-controls-title">
+          <span class="lpm-eyebrow">A0 DRUKWERK</span>
+          <h2 id="poster-controls-title" class="lpm-section-title">Poster per set</h2>
+          <p class="lpm-muted">GLS zoneposter-template. Pas titel/zone aan, preview, exporteer als A0-PDF (print → PDF).</p>
+
+          <label class="lpm-field" for="poster-set">
+            Actieve set
+            <select class="lpm-select" id="poster-set" disabled>
+              <option value="">— eerst batch laden —</option>
+            </select>
+          </label>
+
+          <label class="lpm-field" for="poster-title">
+            Poster titel
+            <input class="lpm-input" id="poster-title" placeholder="Bijv. BEZORGGEBIED AMSTERDAM">
+          </label>
+          <label class="lpm-field" for="poster-zone-label">
+            Zone label
+            <input class="lpm-input" id="poster-zone-label" placeholder="ZONE" value="ZONE">
+          </label>
+          <label class="lpm-field" for="poster-zone-number">
+            Zone nummer
+            <input class="lpm-input" id="poster-zone-number" placeholder="1">
+          </label>
+          <label class="lpm-field" for="poster-footer">
+            Footer tekst
+            <input class="lpm-input" id="poster-footer" placeholder="GLS Netherlands · Zone-indeling">
+          </label>
+
+          <div class="lpm-actions">
+            <button type="button" class="lpm-btn lpm-btn--primary" id="btn-poster-pdf" disabled>Exporteer PDF A0</button>
+            <button type="button" class="lpm-btn lpm-btn--brand" id="btn-poster-pdf-all" disabled>Alle sets → PDF A0</button>
+          </div>
+
+          <aside class="lpm-note">
+            <strong>Drukwerk</strong>
+            <span>Opent een A0-printvenster. Kies “Opslaan als PDF”, papierformaat A0, marges uit.</span>
+          </aside>
+
+          <div class="batch-set-list" id="poster-set-list"></div>
+        </section>
+
+        <section class="lpm-panel poster-preview-panel" aria-labelledby="poster-preview-title">
+          <div class="pc4-map-header">
+            <div>
+              <span class="lpm-eyebrow">PREVIEW</span>
+              <h2 id="poster-preview-title" class="lpm-section-title">A0 poster</h2>
+            </div>
+            <p class="lpm-muted" id="poster-preview-meta">Selecteer een set om de poster te tonen.</p>
+          </div>
+          <div class="poster-frame-wrap">
+            <iframe id="poster-frame" class="poster-frame" title="A0 poster preview" sandbox="allow-same-origin allow-modals"></iframe>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div class="pc4-tooltip" id="tooltip" role="tooltip" hidden></div>
+  <script src="app.js?v=20260907q" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+---
+description: Bindende visuele en functionele basis voor interne La Plume Media AI-tools en workflows
+alwaysApply: true
+---
+
+# La Plume Media Internal AI Toolkit
+
+Lees vóór iedere frontend- of interfacewijziging `AGENTS.md`, `TOOLKIT-INSTRUCTIONS.md`, `toolkit-manifest.json`, `tokens.css`, `toolkit.css` en de relevante delen van `components.html`. Als de bestanden in een toolkit-submap staan, zoek ze daar.
+
+Dit systeem is een **afgeleide productstijl voor interne AI-tooling**, niet de officiële La Plume Media-huisstijl. Gebruik Montserrat, Space Indigo `#1F2449`, Staal Blauw `#70979D`, Palm Groen `#7D9168` en Cyan `#0EB1D1` via de toolkit-tokens. Houd interne scope zichtbaar.
+
+- Body minimaal 16 px, labels minimaal 14 px, helptekst minimaal 13 px, absoluut niets onder 12 px.
+- Gebruik toegankelijke buttons, badges, kaarten, formulieren, radio’s, checkboxes en sliders.
+- Motion: rustig, 160–380 ms, standaard easing, altijd `prefers-reduced-motion`.
+- Het headergrid is een optioneel productpatroon; niet overal toepassen.
+- Behoud bestaande projectstructuur, dependencies en componentarchitectuur.
+- Schrijf natuurlijk Nederlands en presenteer AI-output als controleerbaar concept.
+- Bij conflict heeft een expliciete actuele gebruikersinstructie voorrang.

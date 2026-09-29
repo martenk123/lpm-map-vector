@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GLS Zone Poster A0</title>
+  <style>
+    :root {
+      --gls-blue: #00198C;
+      --gls-yellow: #FFC900;
+      --gls-white: #FFFFFF;
+      --gls-gray: #F2F2F2;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background: #e0e0e0;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    body.is-print {
+      background: #fff;
+      padding: 0;
+      align-items: stretch;
+      justify-content: stretch;
+    }
+
+    .poster-container {
+      width: 100%;
+      max-width: 841px;
+      aspect-ratio: 841 / 1189;
+      background-color: var(--gls-white);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      position: relative;
+      overflow: hidden;
+    }
+
+    body.is-print .poster-container {
+      max-width: none;
+      width: 841mm;
+      height: 1189mm;
+      aspect-ratio: auto;
+      box-shadow: none;
+    }
+
+    .poster-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 5% 6%;
+      background-color: var(--gls-white);
+      flex-shrink: 0;
+    }
+
+    .poster-title {
+      color: var(--gls-blue);
+      font-size: clamp(2rem, 5vw, 4.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      max-width: 70%;
+      text-transform: uppercase;
+      letter-spacing: -1px;
+    }
+
+    .poster-logo {
+      width: 15%;
+      min-width: 80px;
+      background-color: var(--gls-blue);
+      height: 40px;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .poster-logo::after {
+      content: '';
+      position: absolute;
+      right: -10px;
+      top: 0;
+      border-top: 20px solid transparent;
+      border-bottom: 20px solid transparent;
+      border-left: 20px solid var(--gls-yellow);
+    }
+
+    .poster-zone {
+      display: flex;
+      align-items: center;
+      margin: 0 6% 4%;
+      flex-shrink: 0;
+    }
+
+    .zone-label {
+      background-color: var(--gls-yellow);
+      color: var(--gls-blue);
+      padding: 2% 4%;
+      font-size: clamp(1.5rem, 3.5vw, 3rem);
+      font-weight: 700;
+      text-transform: uppercase;
+      border-radius: 4px;
+    }
+
+    .zone-number {
+      font-size: clamp(3rem, 7vw, 6rem);
+      color: var(--gls-blue);
+      font-weight: 900;
+      margin-left: 3%;
+    }
+
+    .poster-map {
+      flex-grow: 1;
+      margin: 0 6% 6%;
+      background-color: var(--gls-gray);
+      border: 4px solid var(--gls-blue);
+      border-radius: 8px;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .poster-map.has-map .map-placeholder-text { display: none; }
+
+    .poster-map-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .poster-map-svg svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .map-placeholder-text {
+      color: #999;
+      font-size: 2rem;
+      font-weight: bold;
+    }
+
+    .poster-footer {
+      background-color: var(--gls-blue);
+      padding: 4% 6%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .footer-text {
+      color: var(--gls-white);
+      font-size: clamp(1rem, 2vw, 1.8rem);
+      font-weight: 500;
+    }
+
+    .footer-accent {
+      width: 15%;
+      height: 8px;
+      background-color: var(--gls-yellow);
+      border-radius: 4px;
+    }
+
+    @page {
+      size: A0;
+      margin: 0;
+    }
+
+    @media print {
+      html, body {
+        width: 841mm;
+        height: 1189mm;
+        background: #fff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .poster-container {
+        width: 841mm !important;
+        height: 1189mm !important;
+        max-width: none !important;
+        box-shadow: none !important;
+        page-break-after: always;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="poster-container">
+    <div class="poster-header">
+      <h1 class="poster-title">{{POSTER_TITEL}}</h1>
+      <div class="poster-logo" aria-label="GLS Logo"></div>
+    </div>
+
+    <div class="poster-zone">
+      <div class="zone-label">{{ZONE_LABEL_TEKST}}</div>
+      <div class="zone-number">{{ZONE_NUMMER}}</div>
+    </div>
+
+    <div class="poster-map{{MAP_HAS_CLASS}}">
+      <span class="map-placeholder-text">KAART WEERGAVE</span>
+      <div class="poster-map-svg">{{MAP_SVG}}</div>
+    </div>
+
+    <div class="poster-footer">
+      <div class="footer-text">{{FOOTER_TEKST}}</div>
+      <div class="footer-accent"></div>
+    </div>
+  </div>
+</body>
+</html>

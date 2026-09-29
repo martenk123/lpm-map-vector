@@ -1,0 +1,7 @@
+# PC4 → SVG pipeline dependencies
+requests>=2.31.0
+shapely>=2.0.0
+tqdm>=4.66.0
+# Topology-safe simplify (--topo, default on)
+topojson>=1.5
+geopandas>=0.14

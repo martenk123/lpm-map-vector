@@ -1,0 +1,17 @@
+{
+  "name": "La Plume Media Internal AI Toolkit",
+  "version": "1.0.0",
+  "language": "nl-NL",
+  "classification": "derived-internal-product-language",
+  "officialBrandGuidelines": false,
+  "intendedUse": ["internal-ai-assistants", "prompt-builders", "internal-dashboards", "workflow-tools", "prototypes"],
+  "notIntendedFor": ["official-brand-guidelines", "public-marketing-websites", "external-client-branding", "claiming-official-brand-authority"],
+  "requiredFiles": ["AGENTS.md", "TOOLKIT-INSTRUCTIONS.md", "tokens.css", "toolkit.css", "components.html", "assets/logo.svg"],
+  "ideRules": {"generic": "AGENTS.md", "cursor": ".cursor/rules/la-plume-toolkit.mdc", "antigravity": ".agents/rules/la-plume-toolkit.md", "gemini": "GEMINI.md"},
+  "visualAnchors": {"font": "Montserrat", "primary": "#1F2449", "secondary": "#70979D", "success": "#7D9168", "productAccent": "#0EB1D1", "logo": "assets/logo.svg"},
+  "readability": {"bodyMinPx": 16, "interfaceLabelMinPx": 14, "supportingTextMinPx": 13, "absoluteMinimumPx": 12, "minimumTouchTargetPx": 44},
+  "motion": {"fastMs": 160, "baseMs": 240, "slowMs": 380, "easing": "cubic-bezier(.2,.72,.2,1)", "reducedMotionRequired": true},
+  "components": ["lockup", "buttons", "badges", "cards", "text-input", "textarea", "select", "radio", "checkbox", "range-slider", "notice"],
+  "optionalPatterns": {"heroGrid": {"class": "lpm-surface-grid", "use": "Optional product-layer motif for headers and selected empty states; never mandatory or everywhere."}},
+  "sourcePriority": ["explicit current user instructions", "TOOLKIT-INSTRUCTIONS.md", "toolkit-manifest.json", "tokens.css", "toolkit.css", "components.html"]
+}

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="nl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="toolkit:scope" content="derived-internal-ai-tooling"><title>La Plume Media — Internal AI Components</title><link rel="stylesheet" href="toolkit.css"></head>
+<body><main class="lpm-shell lpm-stack">
+<header class="lpm-lockup"><img src="assets/logo.svg" alt="La Plume Media"><span class="lpm-lockup__label"><strong>INTERNAL TOOLS</strong><span>Componentencatalogus</span></span></header>
+<section class="lpm-panel"><h1 class="lpm-section-title">Herbruikbare interfacecomponenten</h1><p>Semantische, frameworkonafhankelijke HTML voor interne AI-tools. Geen officiële merkhandleiding.</p></section>
+
+<section class="lpm-panel" id="buttons"><h2>Buttons</h2><div class="lpm-actions"><button class="lpm-btn lpm-btn--primary">Genereer concept</button><button class="lpm-btn lpm-btn--brand">Bekijk output</button><button class="lpm-btn lpm-btn--outline">Instellingen</button></div></section>
+
+<section class="lpm-panel" id="badges"><h2>Badges</h2><div class="lpm-badges"><span class="lpm-badge">AI-assistent</span><span class="lpm-badge lpm-badge--success">Concept klaar</span><span class="lpm-badge lpm-badge--quiet">Alleen intern</span></div></section>
+
+<section class="lpm-panel" id="cards"><h2>Cards</h2><div class="lpm-grid"><article class="lpm-card"><span class="lpm-eyebrow">INTERNE TOOL</span><h3>Promptbibliotheek</h3><p>Herbruikbare prompts voor betere eerste concepten.</p><a class="lpm-motion-direction" href="#">Open de bibliotheek →</a></article><article class="lpm-card lpm-card--green"><span class="lpm-eyebrow" style="color:#fff">AI-OUTPUT</span><h3>Je concept staat klaar</h3><p>Controleer de inhoud en voeg je eigen expertise toe.</p><small>ALTIJD CONTROLEREN</small></article><article class="lpm-card lpm-card--dark"><h3>12 actieve workflows</h3><p>Interne hulpmiddelen voor collega’s.</p></article></div></section>
+
+<section class="lpm-panel" id="inputs"><h2>Inputvelden</h2><div class="lpm-grid"><label class="lpm-field" for="project">Projectnaam<input class="lpm-input" id="project" placeholder="Bijvoorbeeld: onboardingcampagne"></label><label class="lpm-field" for="audience">Doelgroep<input class="lpm-input" id="audience" placeholder="Voor wie maak je dit?"></label></div><br><label class="lpm-field" for="assignment">Je opdracht<textarea class="lpm-textarea" id="assignment" placeholder="Beschrijf kort wat je wilt maken…"></textarea></label></section>
+
+<section class="lpm-panel" id="radio"><h2>Radiobuttons</h2><fieldset style="border:0;padding:0"><legend>Wat wil je doen?</legend><label class="lpm-choice"><input type="radio" name="action" checked><span><strong>Concept genereren</strong><small>Begin met een eerste opzet</small></span></label><label class="lpm-choice"><input type="radio" name="action"><span><strong>Tekst aanscherpen</strong><small>Verbeter een bestaande versie</small></span></label><label class="lpm-choice"><input type="radio" name="action"><span><strong>Analyse samenvatten</strong><small>Maak inzichten overzichtelijk</small></span></label></fieldset></section>
+
+<section class="lpm-panel" id="checkbox"><h2>Checkboxes</h2><fieldset style="border:0;padding:0"><legend>Welke context neem je mee?</legend><label class="lpm-choice"><input type="checkbox" checked><span><strong>Tone of voice meenemen</strong><small>Schrijf herkenbaar en persoonlijk</small></span></label><label class="lpm-choice"><input type="checkbox"><span><strong>Interne context gebruiken</strong><small>Betrek beschikbare projectinformatie</small></span></label><label class="lpm-choice"><input type="checkbox" checked><span><strong>Bronvermelding tonen</strong><small>Maak duidelijk waarop output is gebaseerd</small></span></label></fieldset></section>
+
+<section class="lpm-panel" id="slider"><h2>Sliders</h2><label class="lpm-field" for="creativity">Creatieve vrijheid <output id="creativity-output">60%</output><input class="lpm-range" id="creativity" type="range" min="0" max="100" value="60"></label></section>
+
+<section class="lpm-panel" id="notice"><h2>Notices</h2><aside class="lpm-note"><strong>Conceptstatus</strong><span>AI-output is een eerste hulpmiddel en moet altijd door een collega gecontroleerd worden.</span></aside></section>
+
+<section class="lpm-hero lpm-surface-grid" id="optional-grid"><span class="lpm-scope-chip">OPTIONEEL PATROON</span><h2>Subtiel headergrid</h2><p>Gebruik dit alleen wanneer een donkere productheader of leeg scherm om extra digitale herkenning vraagt.</p></section>
+</main><script>document.getElementById("creativity").addEventListener("input",function(){document.getElementById("creativity-output").value=this.value+"%"})</script></body></html>

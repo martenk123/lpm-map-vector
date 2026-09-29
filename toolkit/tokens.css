@@ -1,0 +1,23 @@
+/* La Plume Media — INTERNAL AI TOOLKIT. Derived product language, not official brand guidelines. */
+@font-face{font-family:"Montserrat";src:url("assets/fonts/Montserrat-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Montserrat";src:url("assets/fonts/Montserrat-SemiBold.ttf") format("truetype");font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:"Montserrat";src:url("assets/fonts/Montserrat-Bold.ttf") format("truetype");font-weight:700;font-style:normal;font-display:swap}
+:root{
+  --lpm-space-indigo:#1f2449;--lpm-vintage-blue:#424157;--lpm-steel-blue:#70979d;
+  --lpm-palm-green:#7d9168;--lpm-forest-green:#506040;--lpm-camel:#a2906a;
+  --lpm-product-cyan:#0eb1d1;--lpm-accent-indigo:#2b3080;--lpm-accent-gold:#b28116;
+  --lpm-accent-lime:#8ebf59;--lpm-accent-forest:#4c7d2f;
+  --lpm-ink:#12161b;--lpm-charcoal:#282828;--lpm-muted:#697078;
+  --lpm-border:#e4e5e3;--lpm-surface:#ffffff;--lpm-surface-subtle:#f6f7f5;
+  --lpm-surface-product:#f3f9fa;--lpm-text-inverse:#ffffff;
+  --lpm-font:"Montserrat",Verdana,Geneva,sans-serif;
+  --lpm-text-min:12px;--lpm-text-small:13px;--lpm-text-label:14px;
+  --lpm-text-body:16px;--lpm-text-lead:18px;--lpm-text-title:35px;
+  --lpm-leading-tight:1.2;--lpm-leading-body:1.65;
+  --lpm-space-1:4px;--lpm-space-2:8px;--lpm-space-3:12px;--lpm-space-4:16px;
+  --lpm-space-5:20px;--lpm-space-6:24px;--lpm-space-8:32px;--lpm-space-10:40px;
+  --lpm-radius-sm:5px;--lpm-radius-md:8px;--lpm-radius-lg:14px;--lpm-radius-pill:999px;
+  --lpm-shadow-sm:0 2px 8px rgba(31,36,73,.07);--lpm-shadow-md:0 10px 28px rgba(31,36,73,.11);
+  --lpm-motion-fast:160ms;--lpm-motion-base:240ms;--lpm-motion-slow:380ms;
+  --lpm-ease:cubic-bezier(.2,.72,.2,1);
+}

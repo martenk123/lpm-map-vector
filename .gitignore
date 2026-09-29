@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+output/*
+!output/nl_pc4.svg
+*.geojson
+.DS_Store
+la-plume-ai-toolkit.zip
